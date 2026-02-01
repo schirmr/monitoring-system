@@ -18,7 +18,7 @@ long ler_arquivo(const char *nome_arquivo, const char *info){
         if(strcmp(buffer, info) == 0){
             fscanf(file, "%ld", &valor);
             fclose(file);
-            return valor; // configurar para que o char vire int
+            return valor;
         }
     }
     fclose(file);
@@ -26,25 +26,36 @@ long ler_arquivo(const char *nome_arquivo, const char *info){
 }
 
 int main(){
-    long mem_total = ler_arquivo("/proc/meminfo", "MemTotal:");
-    if(mem_total == -1){
-        fprintf(stderr, "Erro ao ler a memória total\n");
-        return 1;
+    while(1){
+        long mem_total = ler_arquivo("/proc/meminfo", "MemTotal:");
+        long mem_free = ler_arquivo("/proc/meminfo", "MemAvailable:");
+        if(mem_total == -1 || mem_free == -1){
+            fprintf(stderr, "Erro ao ler informações de memória\n");
+            return 1;
+        }
+        long mem_used = mem_total - mem_free;
+
+        float fmem_total = (float)mem_total / (1024 * 1024);
+        float fmem_free = (float)mem_free / (1024 * 1024); 
+        float fmem_used = (float)mem_used / (1024 * 1024); 
+        float porc_used = (fmem_used / fmem_total) * 100;
+
+        FILE *fp = fopen("metricas.json", "w");
+
+        if(fp){
+            fprintf(fp, "{\n");
+            fprintf(fp, "  \"memoria_total_gb\": %.2f,\n", fmem_total);
+            fprintf(fp, "  \"memoria_disponivel_gb\": %.2f,\n", fmem_free);
+            fprintf(fp, "  \"memoria_usada_gb\": %.2f,\n", fmem_used);
+            fprintf(fp, "  \"porcentagem_memoria_usada\": %.2f\n", porc_used);
+            fprintf(fp, "}\n");
+            fclose(fp);
+        }
+        else {
+            perror("Erro ao abrir o arquivo de saída");
+        }
+        sleep(1);
     }
-    long mem_free = ler_arquivo("/proc/meminfo", "MemAvailable:");
-    if(mem_free == -1){
-        fprintf(stderr, "Erro ao ler a memória disponível\n");
-        return 1;
-    }
-
-    long mem_used = mem_total - mem_free;
-
-    printf("Memória Total: %ld GB\n", mem_total/(1024*1024)); // transformar em float
-    printf("Memória Disponível: %ld GB\n", mem_free/(1024*1024)); // transformar em float
-    printf("Memória Usada: %ld GB\n", mem_used/(1024*1024)); // transformar em float
-
-
-
     return 0;
 }
 
