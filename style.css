@@ -1,0 +1,26 @@
+body {
+    background-color: black;
+    color: #00ff00;
+    font-family: 'Courier New', Courier, monospace;
+    text-align: center;
+    padding-top: 50px;
+}
+
+.painel {
+    border: 2px solid #00ff00;
+    width: 300px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+h1 {
+    text-transform: uppercase;
+    border-bottom: 1px dashed #00ff00;
+    display: inline-block;
+    padding-bottom: 10px;
+}
+
+h3 {
+    font-size: 50px;
+    margin: 10px 0;
+}
