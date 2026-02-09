@@ -1,7 +1,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+
+#ifdef _WIN32
+#include <windows.h> // sleep no windows
+
+
+int ler_memoria_windows(long *total_kb, long *disponivel_kb){
+    MEMORYSTATUSEX memInfo;
+    memInfo.dwLength = sizeof(MEMORYSTATUSEX);
+
+    if(!GlobalMemoryStatusEx(&memInfo)){
+        return -1;
+    }
+
+    *total_kb = memInfo.ullTotalPhys / 1024;
+    *disponivel_kb = memInfo.ullAvailPhys / 1024;
+    return 0;
+}
+
+#else
+#include <unistd.h> // sleep no linux
 
 long ler_arquivo(const char *nome_arquivo, const char *info){
     FILE *file = fopen(nome_arquivo, "r");
@@ -25,14 +44,25 @@ long ler_arquivo(const char *nome_arquivo, const char *info){
     return -1;
 }
 
+#endif
+
+
 int main(){
     while(1){
-        long mem_total = ler_arquivo("/proc/meminfo", "MemTotal:");
-        long mem_free = ler_arquivo("/proc/meminfo", "MemAvailable:");
+        #ifdef _WIN32
+        long mem_total, mem_free;
+        if(ler_memoria_windows(&mem_total, &mem_free) != 0){
+            fprintf(stderr, "Erro ao ler memória no Windows\n");
+            return 1;
+        }
+        #else
+        mem_total = ler_arquivo("/proc/meminfo", "MemTotal:");
+        mem_free = ler_arquivo("/proc/meminfo", "MemAvailable:");
         if(mem_total == -1 || mem_free == -1){
             fprintf(stderr, "Erro ao ler informações de memória\n");
             return 1;
         }
+        #endif
         long mem_used = mem_total - mem_free;
 
         float fmem_total = (float)mem_total / (1024 * 1024);
@@ -54,7 +84,11 @@ int main(){
         else {
             perror("Erro ao abrir o arquivo de saída");
         }
-        sleep(1);
+        #ifdef _WIN32
+        Sleep(1000); // sleep no windows (1000 ms = 1 segundo)
+        #else
+        sleep(1); // sleep no linux (1 segundo)
+        #endif
     }
     return 0;
 }
