@@ -5,6 +5,21 @@
 #ifdef _WIN32
 #include <windows.h> // sleep no windows
 
+boolean first_read = 1; // Variável global para controlar a primeira leitura da CPU
+
+unsigned long long filetime_para_64(FILETIME ft){
+    return ((unsigned long long)ft.dwHighDateTime << 32) | ft.dwLowDateTime; // Converte FILETIME para um valor de 64 bits
+}
+
+int ler_cpu_windows(unsigned long long *idle, unsigned long long *total){
+    FILETIME idleTime, kernelTime, userTime;
+    GetSystemTimes(&idleTime, &kernelTime, &userTime);
+
+    *idle = filetime_para_64(idleTime);
+    *total = filetime_para_64(kernelTime) + filetime_para_64(userTime);
+
+    return 0;
+}
 
 int ler_memoria_windows(long *total_kb, long *disponivel_kb){
     MEMORYSTATUSEX memInfo;
@@ -71,13 +86,33 @@ int main(){
         float porc_used = (fmem_used / fmem_total) * 100;
 
         FILE *fp = fopen("metricas.json", "w");
-
+        #ifdef _WIN32 // Cálculo do uso da CPU no Windows
+        unsigned long long total1, idle1, total_diff, idle_diff;
+        unsigned long long total2, idle2;
+        if(first_read){
+            ler_cpu_windows(&total1, &idle1);
+            Sleep(1000);
+            ler_cpu_windows(&total2, &idle2);
+            first_read = 0;
+            total_diff = total2 - total1;
+            idle_diff  = idle2 - idle1;
+        }
+        else{
+            ler_cpu_windows(&total2, &idle2);
+            total_diff = total2 - total1;
+            idle_diff  = idle2 - idle1;
+            total1 = total2;
+            idle1 = idle2;
+        }
+        float cpu_usage = ((((float)idle_diff / total_diff)-1) * 100.0f);
+        #endif
         if(fp){
             fprintf(fp, "{\n");
             fprintf(fp, "  \"memoria_total_gb\": %.2f,\n", fmem_total);
             fprintf(fp, "  \"memoria_disponivel_gb\": %.2f,\n", fmem_free);
             fprintf(fp, "  \"memoria_usada_gb\": %.2f,\n", fmem_used);
-            fprintf(fp, "  \"porcentagem_memoria_usada\": %.2f\n", porc_used);
+            fprintf(fp, "  \"porcentagem_memoria_usada\": %.2f,\n", porc_used);
+            fprintf(fp, "  \"porcentagem_cpu_usada\": %.2f\n", cpu_usage);
             fprintf(fp, "}\n");
             fclose(fp);
         }
