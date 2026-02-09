@@ -1,21 +1,19 @@
 # Sistema de Monitoramento de Recursos
 
-O objetivo deste projeto é criar uma solução de observabilidade leve, coletando métricas diretamente do Kernel Linux e exibindo-as em um dashboard web simples.
+O objetivo deste projeto é criar uma solução de observabilidade leve, coletando métricas do sistema operacional (Linux ou Windows) e exibindo-as em um dashboard web simples. O sistema feito em C agora detecta o ambiente automaticamente, utilizando `/proc` em Linux e as APIs nativas de memória em Windows, mantendo a mesma saída `metricas.json` para o servidor web.
 
 ## Infos
 
-- `/proc/meminfo` – contém informações do uso de memória RAM. Atualmente o agente lê esse arquivo para calcular:
-  - memória total
-  - memória disponível
-  - memória usada
-  - porcentagem de uso de memória
+- **Linux**: o sistema lê `/proc/meminfo` para calcular memória total, disponível e usar esses valores para derivar memória usada e porcentagem.
+- **Windows**: o sistema usa `GlobalMemoryStatusEx` para obter os mesmos dados, convertendo tudo para KB antes de gerar `metricas.json`.
+- Os valores são convertidos para GB com duas casas decimais e atualizados a cada 1 segundo.
 
 ## Arquitetura do Projeto
 
-O sistema segue um modelo **Agente + Servidor Web**:
+O sistema segue um modelo **Sistema em C + Servidor Web em Python**:
 
 1. **Sistema (C – main.c):**
-	- Roda em loop lendo `/proc/meminfo`.
+	- Em Linux lê `/proc/meminfo`; em Windows usa `GlobalMemoryStatusEx`.
 	- Processa os dados e gera o arquivo `metricas.json` a cada 1 segundo.
 
 2. **Servidor (Python – servidor.py):**
@@ -30,16 +28,20 @@ O sistema segue um modelo **Agente + Servidor Web**:
 
 ## Requisitos
 
-- Linux (acesso a `/proc`)
-- `gcc` para compilar o agente C
-- `python3` para rodar o servidor/orquestrador
-- Navegador web moderno (Chrome, Firefox, etc.)
+- **Linux**
+	- Distribuição com acesso ao `/proc`
+	- `gcc` para compilar o agente C
+	- Python3 
+- **Windows**
+	- Compilador em C (MSYS2) disponível no `PATH`
+	- Python com suporte a `python` ou `python3` no terminal
 
 ## Como rodar o projeto
 
 No diretório do projeto, execute apenas:
 
 ```bash
+# Linux/Windows
 python3 servidor.py
 ```
 
