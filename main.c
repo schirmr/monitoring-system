@@ -37,6 +37,68 @@ int ler_memoria_windows(long *total_kb, long *disponivel_kb){
 #else
 #include <unistd.h> // sleep no linux
 
+typedef struct {
+    unsigned long long user;
+    unsigned long long nice;
+    unsigned long long system;
+    unsigned long long idle;
+    unsigned long long iowait;
+    unsigned long long irq;
+    unsigned long long softirq;
+    unsigned long long steal;
+} cpu_linux_times_t;
+
+void ler_cpu_linux_times(cpu_linux_times_t *cpu) {
+    FILE *fp = fopen("/proc/stat", "r");
+    if (!fp) {
+        perror("fopen");
+        return;
+    }
+
+    fscanf(fp, "cpu  %llu %llu %llu %llu %llu %llu %llu %llu",
+           &cpu->user,
+           &cpu->nice,
+           &cpu->system,
+           &cpu->idle,
+           &cpu->iowait,
+           &cpu->irq,
+           &cpu->softirq,
+           &cpu->steal);
+
+    fclose(fp);
+}
+
+unsigned long long total_cpu_linux_time(cpu_linux_times_t *cpu){
+    return cpu->user + cpu->nice + cpu->system +
+           cpu->idle + cpu->iowait +
+           cpu->irq + cpu->softirq + cpu->steal;
+}
+
+unsigned long long idle_cpu_linux_time(cpu_linux_times_t *cpu){
+    return cpu->idle + cpu->iowait;
+}
+
+double cpu_linux_usage(){
+    cpu_linux_times_t cpu1, cpu2;
+
+    ler_cpu_linux_times(&cpu1);
+    sleep(1);  // intervalo de medição
+    ler_cpu_linux_times(&cpu2);
+
+    unsigned long long total1 = total_cpu_linux_time(&cpu1);
+    unsigned long long total2 = total_cpu_linux_time(&cpu2);
+
+    unsigned long long idle1 = idle_cpu_linux_time(&cpu1);
+    unsigned long long idle2 = idle_cpu_linux_time(&cpu2);
+
+    unsigned long long delta_total = total2 - total1;
+    unsigned long long delta_idle  = idle2  - idle1;
+
+    double cpu_usage = 100.0 * (delta_total - delta_idle) / delta_total;
+    
+    return cpu_usage;
+}
+
 long ler_arquivo(const char *nome_arquivo, const char *info){
     FILE *file = fopen(nome_arquivo, "r");
     char buffer[256];
@@ -64,8 +126,8 @@ long ler_arquivo(const char *nome_arquivo, const char *info){
 
 int main(){
     while(1){
-        #ifdef _WIN32
         long mem_total, mem_free;
+        #ifdef _WIN32
         if(ler_memoria_windows(&mem_total, &mem_free) != 0){
             fprintf(stderr, "Erro ao ler memória no Windows\n");
             return 1;
@@ -105,6 +167,8 @@ int main(){
             idle1 = idle2;
         }
         float cpu_usage = ((((float)idle_diff / total_diff)-1) * 100.0f);
+        #else
+        double cpu_usage = cpu_linux_usage();
         #endif
         if(fp){
             fprintf(fp, "{\n");
